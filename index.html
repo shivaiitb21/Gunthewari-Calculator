@@ -198,6 +198,7 @@ const sidebarUpgrade = document.getElementById('sidebarUpgrade');
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
 const logoutBtn = document.getElementById('logoutBtn');
+const headerEl = document.querySelector('.header');
 
 function showSignup(){loginBox.style.display="none";signupBox.style.display="block";}
 function showLogin(){signupBox.style.display="none";loginBox.style.display="block";}
@@ -385,6 +386,15 @@ if(typeof sidebarToggle !== 'undefined' && sidebarToggle){
   function openSidebar(){
     if(!sidebar) return;
     previouslyFocused = document.activeElement;
+    // On small screens place sidebar below header so it doesn't overlap title
+    if(window.innerWidth<=900){
+      const h = (headerEl && headerEl.offsetHeight) ? headerEl.offsetHeight : 64;
+      try{ sidebar.style.top = h + 'px'; sidebar.style.height = 'calc(100% - ' + h + 'px)'; sidebar.style.display = 'block'; }catch(e){}
+      try{ if(sidebarOverlay){ sidebarOverlay.style.top = h + 'px'; sidebarOverlay.style.height = 'calc(100% - ' + h + 'px)'; } }catch(e){}
+    } else {
+      // desktop: ensure overlay shown if used
+      if(sidebarOverlay) sidebarOverlay.style.display='block';
+    }
     sidebar.classList.add('open');
     sidebar.setAttribute('aria-hidden','false');
     sidebarToggle.setAttribute('aria-expanded','true');
@@ -399,7 +409,9 @@ if(typeof sidebarToggle !== 'undefined' && sidebarToggle){
     sidebar.setAttribute('aria-hidden','true');
     sidebarToggle.setAttribute('aria-expanded','false');
     if(sidebarOverlay) sidebarOverlay.style.display='none';
-    if(window.innerWidth<=900) sidebar.style.display='none';
+    if(window.innerWidth<=900){
+      try{ sidebar.style.display='none'; sidebar.style.top = ''; sidebar.style.height = ''; if(sidebarOverlay) { sidebarOverlay.style.top=''; sidebarOverlay.style.height=''; } }catch(e){}
+    }
     if(previouslyFocused) previouslyFocused.focus();
   }
   sidebarToggle.addEventListener('click',()=>{
