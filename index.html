@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Development Charges Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {margin:0; font-family: Arial, Helvetica, sans-serif; background:#f2f2f2;}
+.header {background:#0b3c5d; color:white; padding:15px; text-align:center; font-size:20px; font-weight:bold;}
+.sub-header {background:#e6e6e6; padding:8px; text-align:center; font-size:13px; border-bottom:1px solid #ccc;}
+.container, .auth-box {max-width:750px; margin:30px auto; background:white; border:1px solid #ccc; padding:25px;}
+.auth-box {max-width:400px;}
+label {font-weight:bold;}
+input {width:100%; padding:8px; margin:6px 0 12px; border:1px solid #999;}
+button {padding:10px 18px; background:#0b3c5d; color:white; border:none; cursor:pointer; font-size:14px;}
+button:hover {background:#092f48;}
+.link {font-size:13px; color:#0b3c5d; cursor:pointer; text-decoration:underline;}
+.logout {float:right; font-size:13px; cursor:pointer; color:#fff;}
+table {width:100%; border-collapse: collapse; margin-top:25px;}
+th, td {border:1px solid #999; padding:10px;}
+th {background:#f0f0f0;}
+.total-row {background:#e6f0f8; font-weight:bold;}
+.footer {text-align:center; font-size:12px; margin-top:25px; color:#555;}
+@media print {.no-print{display:none;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+Development Charges Portal
+<span class="logout no-print" onclick="logout()">Logout</span>
+</div>
+<div class="sub-header">Government Style Calculator – Reference Only</div>
+
+<!-- SIGN IN -->
+<div class="auth-box" id="loginBox">
+<h3>Sign In</h3>
+<label>Email</label><input type="email" id="loginEmail">
+<label>Password</label><input type="password" id="loginPassword">
+<button onclick="login()">Sign In</button>
+<p class="link" onclick="showSignup()">New user? Sign Up</p>
+</div>
+
+<!-- SIGN UP -->
+<div class="auth-box" id="signupBox" style="display:none;">
+<h3>Sign Up</h3>
+<label>Email</label><input type="email" id="signupEmail">
+<label>Password</label><input type="password" id="signupPassword">
+<button onclick="signup()">Create Account</button>
+<p class="link" onclick="showLogin()">Already have account? Sign In</p>
+</div>
+
+<!-- APP -->
+<div class="container" id="app" style="display:none;">
+<h3>Enter Plot Details</h3>
+<label>Plot Area (Sq. Mtr.)</label><input type="number" id="plotArea">
+<label>ASR Rate (₹ / Sq. Mtr.)</label><input type="number" id="asrRate">
+<button class="no-print" onclick="calculate()">Calculate</button>
+<button class="no-print" id="printBtn" onclick="handlePrint()">Print (Pro)</button>
+<button class="no-print" id="pdfBtn" onclick="downloadPDF()">Download PDF (Pro)</button>
+<button class="no-print" id="upgradeBtn" onclick="upgradeToPro()">Upgrade to PRO</button>
+
+<table id="resultTable" style="display:none;">
+<tr><th>Particulars</th><th>Amount (₹)</th></tr>
+<tr><td>Scrutiny Fee</td><td id="scrutiny"></td></tr>
+<tr><td>Land Development Charges</td><td id="ldc"></td></tr>
+<tr><td>Betterment Charges</td><td id="betterment"></td></tr>
+<tr class="total-row"><td>Total</td><td id="total"></td></tr>
+</table>
+
+<div class="footer">* For reference only. Subject to GR & UDCPR.</div>
+</div>
+
+<!-- Razorpay -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+// Session
+let currentUser = null;
+
+// Result elements
+const scrutinyEl = document.getElementById("scrutiny");
+const ldcEl = document.getElementById("ldc");
+const bettermentEl = document.getElementById("betterment");
+const totalEl = document.getElementById("total");
+
+// Show login/signup
+function showSignup(){ loginBox.style.display="none"; signupBox.style.display="block"; }
+function showLogin(){ signupBox.style.display="none"; loginBox.style.display="block"; }
+
+// Sign Up
+function signup(){
+    const email = signupEmail.value.trim();
+    const pass = signupPassword.value.trim();
+    if(!email||!pass){alert("Fill all fields");return;}
+    let users = JSON.parse(localStorage.getItem("users")||"[]");
+    if(users.find(u=>u.email===email)){alert("User exists");return;}
+    users.push({email, pass, plan:"FREE"});
+    localStorage.setItem("users", JSON.stringify(users));
+    alert("Account created! Please login."); showLogin();
+}
+
+// Login
+function login(){
+    const email = loginEmail.value.trim();
+    const pass = loginPassword.value.trim();
+    let users = JSON.parse(localStorage.getItem("users")||"[]");
+    const user = users.find(u=>u.email===email && u.pass===pass);
+    if(!user){alert("Invalid credentials"); return;}
+    currentUser = user;
+    localStorage.setItem("session", JSON.stringify(user));
+    loadSession();
+}
+
+// Logout
+function logout(){ localStorage.removeItem("session"); location.reload(); }
+
+// Load session
+function loadSession(){
+    let sess = JSON.parse(localStorage.getItem("session"));
+    if(!sess) return;
+    currentUser = sess;
+    loginBox.style.display="none"; signupBox.style.display="none"; app.style.display="block";
+    if(currentUser.plan!=="PRO"){ printBtn.style.display="none"; pdfBtn.style.display="none"; } else upgradeBtn.style.display="none";
+}
+
+// Calculator
+function formatINR(num){return num.toLocaleString('en-IN',{minimumFractionDigits:2, maximumFractionDigits:2});}
+function calculate(){
+    const pa=Number(plotArea.value), asr=Number(asrRate.value);
+    if(!pa||!asr){alert("Enter valid numbers");return;}
+    const scrutiny=pa*4, ldc=pa*asr*0.015, betterment=pa*1670, total=scrutiny+ldc+betterment;
+    scrutinyEl.innerText=formatINR(scrutiny);
+    ldcEl.innerText=formatINR(ldc);
+    bettermentEl.innerText=formatINR(betterment);
+    totalEl.innerText=formatINR(total);
+    resultTable.style.display="table";
+}
+
+// Print
+function handlePrint(){ if(currentUser.plan!=="PRO"){alert("Upgrade to PRO to print"); return;} window.print(); }
+
+// Upgrade to PRO
+function upgradeToPro(){
+    var options = {
+        "key": "rzp_test_YourKeyHere", // Replace with Razorpay Key
+        "amount": 99900,
+        "currency": "INR",
+        "name": "Dev Charges Portal",
+        "description": "PRO Subscription",
+        "handler": function(response){
+            alert("Payment successful! You are now PRO.");
+            currentUser.plan="PRO";
+            let users=JSON.parse(localStorage.getItem("users")||"[]");
+            users = users.map(u=>u.email===currentUser.email?currentUser:u);
+            localStorage.setItem("users", JSON.stringify(users));
+            localStorage.setItem("session", JSON.stringify(currentUser));
+            printBtn.style.display="inline-block";
+            pdfBtn.style.display="inline-block";
+            upgradeBtn.style.display="none";
+        },
+        "theme":{"color":"#0b3c5d"}
+    };
+    var rzp1 = new Razorpay(options); rzp1.open();
+}
+
+// Download PDF
+function downloadPDF(){
+    if(currentUser.plan!=="PRO"){alert("Upgrade to PRO to download PDF."); return;}
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(16); doc.text("Development Charges Calculation", 20, 20);
+    doc.setFontSize(12);
+    doc.text(`User: ${currentUser.email}`, 20, 30);
+    doc.text(`Plot Area: ${plotArea.value} Sq. Mtr.`, 20, 40);
+    doc.text(`ASR Rate: ₹${asrRate.value}`, 20, 50);
+    doc.text(`Scrutiny Fee: ₹${scrutinyEl.innerText}`, 20, 60);
+    doc.text(`Land Development Charges: ₹${ldcEl.innerText}`, 20, 70);
+    doc.text(`Betterment Charges: ₹${bettermentEl.innerText}`, 20, 80);
+    doc.text(`Total Charges: ₹${totalEl.innerText}`, 20, 90);
+    doc.text("* This calculation is for reference only", 20, 110);
+    doc.save("Development_Charges.pdf");
+}
+
+// Init
+window.onload=loadSession;
+</script>
+</body>
+</html>
