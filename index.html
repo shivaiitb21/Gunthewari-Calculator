@@ -28,16 +28,50 @@ th{background:#f0f0f0;}
 .spinner{width:28px;height:28px;border:4px solid #e6e6e6;border-top-color:#0b3c5d;border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loader-text{font-size:14px;color:#333}
+.sidebar{position:fixed;left:0;top:64px;bottom:0;width:220px;background:#fff;border-right:1px solid #ddd;padding:12px 8px;z-index:900;transform:translateX(0);transition:transform .25s ease;display:none}
+.sidebar.open{transform:translateX(0)}
+.sidebar .title{font-weight:700;padding:8px 6px;color:#0b3c5d}
+.sidebar .item{padding:8px 6px}
+.header{position:relative;display:flex;align-items:center;justify-content:center;padding:15px 12px;background:#0b3c5d;color:#fff;font-size:20px;font-weight:bold}
+.header-title{position:static;transform:none;font-size:20px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.link:focus{outline:2px solid #0b3c5d;outline-offset:2px}
+.sidebar-toggle{display:none;position:absolute;left:220px;top:50%;transform:translateY(-50%);z-index:1001;border:none;background:#0b3c5d;color:#fff;padding:8px;border-radius:0 6px 6px 0;cursor:pointer;font-size:18px;line-height:1}
+.sidebar.collapsed{transform:translateX(-260px)}
+@media (max-width:900px){
+  .sidebar{display:block;transform:translateX(-260px)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-toggle{display:inline-block;position:fixed;left:12px;top:12px;transform:none;z-index:1001;border:none;background:#0b3c5d;color:#fff;padding:8px;border-radius:6px;cursor:pointer;font-size:18px}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:900}
+  .container{margin-left:0!important}
+  .header{padding-left:12px;padding-right:12px}
+  .header-title{max-width:70%}
+}
+
+/* right actions container positioning */
+.right-actions{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1002}
 </style>
 </head>
 
 <body>
 
 <div class="header">
-Development Charges Portal
-<span class="logout no-print" onclick="logout()">Logout</span>
+  <button id="sidebarToggle" class="sidebar-toggle no-print" aria-label="Toggle account menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+  <div class="header-title">Development Charges Portal</div>
+  <div class="right-actions no-print" style="display:flex;gap:12px;align-items:center;">
+    <span class="link" id="upgradeBtn" tabindex="0" role="button" onclick="startUpgrade()" style="display:none;">Upgrade to PRO</span>
+    <span class="link" id="profileBtn" tabindex="0" role="button" onclick="showProfile()" style="display:none;">My Profile</span>
+    <span id="logoutBtn" class="logout" tabindex="0" role="button" onclick="logout()" style="display:none;color:#fff;">Logout</span>
+  </div>
 </div>
 <div class="sub-header">Government Style Calculator – Reference Only</div>
+<!-- LEFT SIDEBAR (account links) -->
+<div id="sidebar" class="sidebar">
+  <div class="title">Account</div>
+  <div class="item"><span class="link" tabindex="0" role="button" onclick="showProfile()">My Profile</span></div>
+  <div class="item"><span class="link" id="sidebarUpgrade" tabindex="0" role="button" onclick="startUpgrade()">Upgrade to PRO</span></div>
+  <div class="item"><span class="link" tabindex="0" role="button" onclick="logout()">Logout</span></div>
+</div>
+<div id="sidebarOverlay" class="sidebar-overlay" style="display:none;"></div>
 
 <!-- LOGIN -->
 <div class="auth-box" id="loginBox">
@@ -45,8 +79,8 @@ Development Charges Portal
 <label>Email</label><input type="email" id="loginEmail">
 <label>Password</label><input type="password" id="loginPassword">
 <button onclick="login()">Sign In</button>
-<p class="link" onclick="forgot()">Forgot Password?</p>
-<p class="link" onclick="showSignup()">New user? Sign Up</p>
+<p class="link" tabindex="0" role="button" onclick="forgot()">Forgot Password?</p>
+<p class="link" tabindex="0" role="button" onclick="showSignup()">New user? Sign Up</p>
 </div>
 
 <!-- SIGNUP -->
@@ -55,7 +89,26 @@ Development Charges Portal
 <label>Email</label><input type="email" id="signupEmail">
 <label>Password</label><input type="password" id="signupPassword">
 <button onclick="signup()">Create Account</button>
-<p class="link" onclick="showLogin()">Already have account? Sign In</p>
+<p class="link" tabindex="0" role="button" onclick="showLogin()">Already have account? Sign In</p>
+</div>
+
+<!-- PROFILE -->
+<div class="auth-box" id="profileBox" style="display:none;">
+<h3>My Profile</h3>
+<div style="margin-bottom:10px;"><strong>Email:</strong> <span id="profileEmail"></span></div>
+<div style="margin-bottom:10px;"><strong>Plan:</strong> <span id="profilePlan"></span></div>
+<div style="margin-bottom:10px;"><strong>Paid:</strong> <span id="profilePaid"></span></div>
+<div style="margin-bottom:14px;"><strong>Session Info:</strong> <span id="profileSession"></span></div>
+<button onclick="hideProfile()">Back</button>
+<button onclick="startUpgrade()" id="profileUpgradeBtn" style="margin-left:8px;display:none;">Upgrade to PRO</button>
+</div>
+
+<!-- PAYMENT HISTORY (in profile) -->
+<div class="auth-box" id="paymentHistoryBox" style="display:none;">
+<h3>Payment History</h3>
+<div id="paymentHistory" style="max-height:240px;overflow:auto;font-size:13px;padding-right:6px;">No payments yet.</div>
+<div style="margin-top:12px;"><button onclick="hidePaymentHistory()">Back</button></div>
+</div>
 </div>
 
 <!-- LOADER OVERLAY -->
@@ -72,8 +125,8 @@ Development Charges Portal
 <label>Plot Area (Sq. Mtr.)</label><input type="number" id="plotArea">
 <label>ASR Rate (₹ / Sq. Mtr.)</label><input type="number" id="asrRate">
 <button class="no-print" onclick="calculate()">Calculate</button>
-<button class="no-print" id="printBtn" onclick="handlePrint()">Print (Pro)</button>
-<button class="no-print" id="pdfBtn" onclick="downloadPDF()">Download PDF (Pro)</button>
+<button class="no-print" onclick="resetCalculator()">Reset</button>
+  <button class="no-print" id="printBtn" style="display:none;" onclick="handlePrint()">Print (Pro)</button>
 
 <table id="resultTable" style="display:none;">
 <tr><th>Particulars</th><th>Amount (₹)</th></tr>
@@ -86,7 +139,7 @@ Development Charges Portal
 <div class="footer">* For reference only. Subject to GR & UDCPR.</div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- jsPDF removed as PDF download feature removed -->
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbzq_x3JcXfHexq51lNtl7Glayg2WZoh1lVAmdenE03-ZPL6Y_2U222sidDzApaNf2zO/exec";  // 🔴 GOOGLE APPS SCRIPT URL
@@ -116,33 +169,162 @@ const scrutinyEl=document.getElementById("scrutiny");
 const ldcEl=document.getElementById("ldc");
 const bettermentEl=document.getElementById("betterment");
 const totalEl=document.getElementById("total");
+const resultTable = document.getElementById("resultTable");
+const printBtn = document.getElementById("printBtn");
+const upgradeBtn = document.getElementById("upgradeBtn");
+const profileBtn = document.getElementById("profileBtn");
+const profileBox = document.getElementById("profileBox");
+const profileEmailEl = document.getElementById("profileEmail");
+const profilePlanEl = document.getElementById("profilePlan");
+const profilePaidEl = document.getElementById("profilePaid");
+const profileSessionEl = document.getElementById("profileSession");
+const profileUpgradeBtn = document.getElementById("profileUpgradeBtn");
+const paymentHistoryBox = document.getElementById('paymentHistoryBox');
+const paymentHistoryEl = document.getElementById('paymentHistory');
+const sidebar = document.getElementById('sidebar');
+const sidebarUpgrade = document.getElementById('sidebarUpgrade');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const logoutBtn = document.getElementById('logoutBtn');
 
 function showSignup(){loginBox.style.display="none";signupBox.style.display="block";}
 function showLogin(){signupBox.style.display="none";loginBox.style.display="block";}
 
+function showProfile(){
+  if(!currentUser){ alert('Please sign in first.'); showLogin(); return; }
+  // render profile fields
+  profileEmailEl.innerText = currentUser.email || '';
+  profilePlanEl.innerText = currentUser.plan || 'FREE';
+  const paid = getPaidUsers();
+  profilePaidEl.innerText = (currentUser.email && paid[currentUser.email]) ? 'Yes' : 'No';
+  profileSessionEl.innerText = JSON.stringify(currentUser);
+  // toggle visibility
+  loginBox.style.display = 'none'; signupBox.style.display = 'none'; app.style.display = 'none';
+  profileBox.style.display = 'block';
+  if(currentUser.plan !== 'PRO'){ if(profileUpgradeBtn) profileUpgradeBtn.style.display = 'inline-block'; }
+  else if(profileUpgradeBtn) profileUpgradeBtn.style.display = 'none';
+  // render payment history for this user
+  renderPaymentHistory(currentUser.email);
+}
+
+function hideProfile(){
+  profileBox.style.display = 'none';
+  // show app if logged in else show login
+  if(currentUser){ app.style.display = 'block'; }
+  else { loginBox.style.display = 'block'; }
+}
+
+function showPaymentHistory(){
+  if(!currentUser){ alert('Please sign in first.'); showLogin(); return; }
+  profileBox.style.display = 'none';
+  renderPaymentHistory(currentUser.email);
+  paymentHistoryBox.style.display = 'block';
+}
+
+function hidePaymentHistory(){
+  paymentHistoryBox.style.display = 'none';
+  profileBox.style.display = 'block';
+}
+
+function getPayments(){
+  try{ return JSON.parse(localStorage.getItem('payments')||'[]'); }catch(e){ return []; }
+}
+
+function savePaymentRecord(rec){
+  if(!rec || !rec.email) return;
+  const list = getPayments();
+  list.unshift(rec);
+  localStorage.setItem('payments', JSON.stringify(list));
+}
+
+function renderPaymentHistory(email){
+  if(!paymentHistoryEl) return;
+  const all = getPayments().filter(r => r.email === email);
+  if(all.length === 0){ paymentHistoryEl.innerHTML = '<div>No payments yet.</div>'; return; }
+  const rows = all.map(r=>{
+    const date = new Date(r.date).toLocaleString();
+    const amt = (r.amount/100).toLocaleString('en-IN',{minimumFractionDigits:2});
+    return `<div style="padding:8px;border-bottom:1px solid #eee;"><strong>Payment ID:</strong> ${r.payment_id}<br><strong>Order ID:</strong> ${r.order_id || '-'}<br><strong>Amount:</strong> ₹${amt}<br><strong>Date:</strong> ${date}</div>`;
+  });
+  paymentHistoryEl.innerHTML = rows.join('');
+}
+
+function isValidEmailOrPhone(v){
+  if(!v) return false;
+  v = (v+"").trim();
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRe = /^\d{10,15}$/; // allow 10-15 digits
+  return emailRe.test(v) || phoneRe.test(v);
+}
+
 async function signup(){
+  const id = (signupEmail.value||'').trim();
+  const pass = signupPassword.value || '';
+  if(!isValidEmailOrPhone(id)){
+    alert('Enter a valid email address or mobile number');
+    return;
+  }
+  if(!pass){ alert('Please enter a password'); return; }
   showLoader('Creating account...');
   try{
-    const res = await fetch(API,{method:"POST",body:JSON.stringify({action:"signup",email:signupEmail.value,password:signupPassword.value})});
+    const res = await fetch(API,{method:"POST",body:JSON.stringify({action:"signup",email:id,password:pass})});
     const t = await res.text();
-    alert(t==="OK"?"Account created":"User exists");
-    if(t==="OK"){ showLogin(); }
+    if(t==="OK"){ alert('Account created'); showLogin(); }
+    else { alert('User already exists, please login.'); showLogin(); }
   }catch(err){
-    alert('Network error');
+    // offline/local fallback: store in localUsers to prevent duplicates
+    try{
+      const users = JSON.parse(localStorage.getItem('localUsers')||'[]');
+      if(users.find(u=>u.id===id)){
+        hideLoader(); alert('User already exists, please login.'); showLogin(); return;
+      }
+      users.push({id:id,password:pass});
+      localStorage.setItem('localUsers', JSON.stringify(users));
+      hideLoader(); alert('Account created (offline)'); showLogin();
+    }catch(e){
+      hideLoader(); alert('Network error');
+    }
   }finally{
     hideLoader();
   }
 }
 
 async function login(){
+  const id = (loginEmail.value||'').trim();
+  const pass = loginPassword.value || '';
+  if(!isValidEmailOrPhone(id)){
+    alert('Enter a valid email address or mobile number');
+    return;
+  }
+  if(!pass){ alert('Please enter your password'); return; }
   showLoader('Signing in...');
   try{
-    const res = await fetch(API,{method:"POST",body:JSON.stringify({action:"login",email:loginEmail.value,password:loginPassword.value,device:navigator.userAgent,ip:"web"})});
+    const res = await fetch(API,{method:"POST",body:JSON.stringify({action:"login",email:id,password:pass,device:navigator.userAgent,ip:"web"})});
     const d = await res.json();
-    if(d.status==="OK"){ currentUser={email:loginEmail.value,plan:d.plan}; localStorage.setItem("session",JSON.stringify(currentUser)); loadSession(); }
-    else { alert("Invalid login"); }
+    if(d && d.status==="OK"){
+      currentUser={email:id,plan:d.plan};
+      localStorage.setItem("session",JSON.stringify(currentUser));
+      loadSession();
+    } else {
+      alert("Invalid login");
+    }
   }catch(err){
-    alert('Network error');
+    // offline/local fallback: check localUsers
+    try{
+      const users = JSON.parse(localStorage.getItem('localUsers')||'[]');
+      const matched = users.find(u=>u.id===id && u.password===pass);
+      if(matched){
+        currentUser = { email: id, plan: 'FREE' };
+        localStorage.setItem('session', JSON.stringify(currentUser));
+        loadSession();
+        hideLoader();
+        return;
+      }
+      hideLoader();
+      alert('Network error or invalid credentials');
+    }catch(e){
+      hideLoader(); alert('Network error');
+    }
   }finally{
     hideLoader();
   }
@@ -162,8 +344,79 @@ function loadSession(){
  if(!s)return;
  currentUser=s;
  loginBox.style.display="none";signupBox.style.display="none";app.style.display="block";
- if(currentUser.plan!=="PRO"){printBtn.style.display="none";pdfBtn.style.display="none";}
+ // Apply paid-user records from localStorage
+ try{
+   const paid = getPaidUsers();
+   if(currentUser && paid[currentUser.email]){
+     currentUser.plan = 'PRO';
+     localStorage.setItem('session', JSON.stringify(currentUser));
+   }
+ }catch(e){}
+  // Show sidebar and profile link for any logged-in user
+  if(profileBtn) profileBtn.style.display = 'inline-block';
+  if(logoutBtn) logoutBtn.style.display = 'inline-block';
+  if(sidebar){ sidebar.style.display = 'block'; sidebar.setAttribute('aria-hidden','false'); sidebar.classList.remove('collapsed'); }
+  if(sidebarToggle){ sidebarToggle.style.display = ''; sidebarToggle.setAttribute('aria-hidden','false'); sidebarToggle.setAttribute('aria-expanded','true'); try{ sidebarToggle.style.left = sidebar.classList.contains('collapsed') ? '12px' : '220px'; }catch(e){} }
+  if(currentUser.plan!=="PRO"){
+    if(printBtn) printBtn.style.display="none";
+    if(upgradeBtn) upgradeBtn.style.display = 'inline-block';
+    if(sidebarUpgrade) sidebarUpgrade.style.display = 'inline-block';
+  } else {
+    if(upgradeBtn) upgradeBtn.style.display = 'none';
+    if(sidebarUpgrade) sidebarUpgrade.style.display = 'none';
+  }
 }
+
+// Sidebar toggle for mobile
+if(typeof sidebarToggle !== 'undefined' && sidebarToggle){
+  let previouslyFocused = null;
+  function openSidebar(){
+    if(!sidebar) return;
+    previouslyFocused = document.activeElement;
+    sidebar.classList.add('open');
+    sidebar.setAttribute('aria-hidden','false');
+    sidebarToggle.setAttribute('aria-expanded','true');
+    if(sidebarOverlay) sidebarOverlay.style.display='block';
+    // focus first actionable element in sidebar
+    const first = sidebar.querySelector('.link, button, [tabindex]');
+    if(first) first.focus();
+  }
+  function closeSidebar(){
+    if(!sidebar) return;
+    sidebar.classList.remove('open');
+    sidebar.setAttribute('aria-hidden','true');
+    sidebarToggle.setAttribute('aria-expanded','false');
+    if(sidebarOverlay) sidebarOverlay.style.display='none';
+    if(window.innerWidth<=900) sidebar.style.display='none';
+    if(previouslyFocused) previouslyFocused.focus();
+  }
+  sidebarToggle.addEventListener('click',()=>{
+    if(window.innerWidth<=900){
+      if(sidebar.classList.contains('open')) closeSidebar(); else openSidebar();
+      return;
+    }
+    // Desktop: toggle collapsed state
+    const collapsed = sidebar.classList.toggle('collapsed');
+    sidebar.setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+    sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    // move the toggle to sidebar edge or compact position
+    try{ sidebarToggle.style.left = collapsed ? '12px' : '220px'; }catch(e){}
+  });
+  if(sidebarOverlay){ sidebarOverlay.addEventListener('click',()=>{ closeSidebar(); }); }
+  // close on Escape
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && sidebar && sidebar.classList.contains('open')){ closeSidebar(); } });
+}
+
+// Keyboard delegation: activate focused `role="button"` or `.link` with Enter/Space
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Enter' || e.key === ' '){
+    const el = document.activeElement;
+    if(!el) return;
+    const isButtonRole = el.getAttribute && el.getAttribute('role') === 'button';
+    const isLinkClass = el.classList && el.classList.contains('link');
+    if(isButtonRole || isLinkClass){ e.preventDefault(); el.click(); }
+  }
+});
 
 function logout(){localStorage.removeItem("session");location.reload();}
 
@@ -177,15 +430,128 @@ function calculate(){
  bettermentEl.innerText=formatINR(betterment);
  totalEl.innerText=formatINR(total);
  resultTable.style.display="table";
+  // Show print/pdf options after calculation for all users
+  try{
+    if(printBtn) printBtn.style.display = 'inline-block';
+  }catch(e){/* ignore */}
 }
 
-function handlePrint(){window.print();}
+// ------------------ Razorpay upgrade flow & paid-user records ------------------
+function getPaidUsers(){
+  try{ return JSON.parse(localStorage.getItem('paidUsers')||'{}'); }catch(e){ return {}; }
+}
 
-function downloadPDF(){
- const {jsPDF}=window.jspdf;
- const doc=new jsPDF();
- doc.text("Total Charges: ₹"+totalEl.innerText,20,20);
- doc.save("charges.pdf");
+function markUserPaid(email){
+  if(!email) return;
+  const paid = getPaidUsers();
+  paid[email] = true;
+  localStorage.setItem('paidUsers', JSON.stringify(paid));
+}
+
+async function startUpgrade(){
+  if(!currentUser){ if(confirm('Please sign in to upgrade. Sign in now?')) showLogin(); return; }
+  // Client-only flow: create a local order and open Razorpay checkout directly.
+  // NOTE: For production you should create an order server-side and verify the signature.
+  showLoader('Opening payment...');
+  try{
+    const orderData = { order_id: null, amount: 49900, key: 'rzp_test_your_key_here', prefill: { email: currentUser.email } };
+    hideLoader();
+    openRazorpay(orderData);
+  }catch(e){
+    hideLoader();
+    alert('Unable to open payment gateway.');
+  }
+}
+
+function openRazorpay(orderData){
+  // load Razorpay checkout script if needed
+  function _open(){
+    const options = {
+      key: orderData.key || 'rzp_test_dummy',
+      amount: orderData.amount || 49900,
+      currency: 'INR',
+      name: 'Development Charges Portal',
+      description: 'Upgrade to PRO',
+      order_id: orderData.order_id,
+      handler: function(response){
+        showLoader('Verifying payment...');
+        verifyPayment(response);
+      },
+      prefill: orderData.prefill || {},
+      theme: { color: '#0b3c5d' }
+    };
+    const rzp = new Razorpay(options);
+    rzp.open();
+  }
+  if(typeof Razorpay === 'undefined'){
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload = _open;
+    document.head.appendChild(s);
+  } else {
+    _open();
+  }
+}
+
+async function verifyPayment(resp){
+  // In production, send `resp` to your server to verify signature with Razorpay secret.
+  // Here we simulate successful verification and mark user paid.
+  try{
+    // Example server verification (commented):
+    // const v = await fetch('/verifyPayment',{method:'POST',body:JSON.stringify(resp)}); await v.json();
+    // build a payment record and save it
+    const rec = {
+      email: currentUser.email,
+      payment_id: resp.razorpay_payment_id || resp.payment_id || ('MOCK_' + Date.now()),
+      order_id: resp.razorpay_order_id || resp.order_id || null,
+      amount: resp.amount || 49900,
+      date: new Date().toISOString(),
+      meta: resp
+    };
+    savePaymentRecord(rec);
+    markUserPaid(currentUser.email);
+    currentUser.plan = 'PRO';
+    localStorage.setItem('session', JSON.stringify(currentUser));
+    hideLoader();
+    alert('Payment successful — your account is upgraded to PRO.');
+    loadSession();
+  }catch(e){
+    hideLoader();
+    alert('Payment verification failed. Contact support.');
+  }
+}
+
+function resetCalculator(){
+  // Clear inputs
+  const paEl = document.getElementById('plotArea');
+  const asrEl = document.getElementById('asrRate');
+  if(paEl) paEl.value = '';
+  if(asrEl) asrEl.value = '';
+  // Clear results
+  scrutinyEl.innerText = '';
+  ldcEl.innerText = '';
+  bettermentEl.innerText = '';
+  totalEl.innerText = '';
+  if(resultTable) resultTable.style.display = 'none';
+  if(paEl) paEl.focus();
+}
+
+function canUseProFeature(){
+  if(!currentUser){
+    if(confirm('Printing and PDF require signing in. Sign in now?')){ showLogin(); }
+    return false;
+  }
+  if(currentUser.plan !== 'PRO'){
+    if(confirm('This is a PRO feature. Upgrade to PRO now?')){
+      alert('To upgrade, contact support or visit your account page.');
+    }
+    return false;
+  }
+  return true;
+}
+function handlePrint(){
+  if(!canUseProFeature()) return;
+  window.print();
 }
 
 window.onload=loadSession;
