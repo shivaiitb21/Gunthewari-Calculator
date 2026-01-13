@@ -22,6 +22,12 @@ th{background:#f0f0f0;}
 .total-row{background:#e6f0f8;font-weight:bold;}
 .footer{text-align:center;font-size:12px;margin-top:25px;color:#555;}
 @media print {.no-print{display:none;}}
+/* Loader styles */
+.loader-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;z-index:9999}
+.loader-box{background:#fff;padding:18px 22px;border-radius:8px;display:flex;align-items:center;gap:12px;min-width:220px;box-shadow:0 6px 18px rgba(0,0,0,0.2)}
+.spinner{width:28px;height:28px;border:4px solid #e6e6e6;border-top-color:#0b3c5d;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{font-size:14px;color:#333}
 </style>
 </head>
 
@@ -52,6 +58,14 @@ Development Charges Portal
 <p class="link" onclick="showLogin()">Already have account? Sign In</p>
 </div>
 
+<!-- LOADER OVERLAY -->
+<div class="loader-overlay" id="loader">
+  <div class="loader-box">
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="loader-text">Please wait...</div>
+  </div>
+</div>
+
 <!-- APP -->
 <div class="container" id="app" style="display:none;">
 <h3>Enter Plot Details</h3>
@@ -78,7 +92,26 @@ Development Charges Portal
 const API = "https://script.google.com/macros/s/AKfycbzq_x3JcXfHexq51lNtl7Glayg2WZoh1lVAmdenE03-ZPL6Y_2U222sidDzApaNf2zO/exec";  // 🔴 GOOGLE APPS SCRIPT URL
 
 let currentUser=null;
+const loader = document.getElementById("loader");
 
+function setAuthDisabled(state){
+  const els = document.querySelectorAll('#loginBox input,#loginBox button,#signupBox input,#signupBox button');
+  els.forEach(e=>e.disabled = state);
+}
+
+function showLoader(message = 'Please wait...'){
+  if(loader){
+    const txt = loader.querySelector('.loader-text');
+    if(txt) txt.innerText = message;
+    loader.style.display = 'flex';
+  }
+  setAuthDisabled(true);
+}
+
+function hideLoader(){
+  if(loader) loader.style.display = 'none';
+  setAuthDisabled(false);
+}
 const scrutinyEl=document.getElementById("scrutiny");
 const ldcEl=document.getElementById("ldc");
 const bettermentEl=document.getElementById("betterment");
@@ -87,17 +120,32 @@ const totalEl=document.getElementById("total");
 function showSignup(){loginBox.style.display="none";signupBox.style.display="block";}
 function showLogin(){signupBox.style.display="none";loginBox.style.display="block";}
 
-function signup(){
- fetch(API,{method:"POST",body:JSON.stringify({action:"signup",email:signupEmail.value,password:signupPassword.value})})
- .then(r=>r.text()).then(t=>alert(t=="OK"?"Account created":"User exists"));
+async function signup(){
+  showLoader('Creating account...');
+  try{
+    const res = await fetch(API,{method:"POST",body:JSON.stringify({action:"signup",email:signupEmail.value,password:signupPassword.value})});
+    const t = await res.text();
+    alert(t==="OK"?"Account created":"User exists");
+    if(t==="OK"){ showLogin(); }
+  }catch(err){
+    alert('Network error');
+  }finally{
+    hideLoader();
+  }
 }
 
-function login(){
- fetch(API,{method:"POST",body:JSON.stringify({action:"login",email:loginEmail.value,password:loginPassword.value,device:navigator.userAgent,ip:"web"})})
- .then(r=>r.json()).then(d=>{
-   if(d.status=="OK"){currentUser={email:loginEmail.value,plan:d.plan};localStorage.setItem("session",JSON.stringify(currentUser));loadSession();}
-   else alert("Invalid login");
- });
+async function login(){
+  showLoader('Signing in...');
+  try{
+    const res = await fetch(API,{method:"POST",body:JSON.stringify({action:"login",email:loginEmail.value,password:loginPassword.value,device:navigator.userAgent,ip:"web"})});
+    const d = await res.json();
+    if(d.status==="OK"){ currentUser={email:loginEmail.value,plan:d.plan}; localStorage.setItem("session",JSON.stringify(currentUser)); loadSession(); }
+    else { alert("Invalid login"); }
+  }catch(err){
+    alert('Network error');
+  }finally{
+    hideLoader();
+  }
 }
 
 function forgot(){
