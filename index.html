@@ -49,6 +49,10 @@ th{background:#f0f0f0;}
 
 /* right actions container positioning */
 .right-actions{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:1002}
+/* logo styles */
+.logo-small{width:36px;height:36px;flex:0 0 36px;margin-right:10px}
+.logo-large{width:120px;height:120px;display:block;margin:6px auto 12px}
+.logo-center{display:block;margin:6px auto 12px}
 </style>
 </head>
 
@@ -56,6 +60,8 @@ th{background:#f0f0f0;}
 
 <div class="header">
   <button id="sidebarToggle" class="sidebar-toggle no-print" aria-label="Toggle account menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+  <!-- small header logo (local file) -->
+  <img src="logo.png" class="logo-small" alt="DCP logo">
   <div class="header-title">Development Charges Portal</div>
   <div class="right-actions no-print" style="display:flex;gap:12px;align-items:center;">
     <span class="link" id="upgradeBtn" tabindex="0" role="button" onclick="startUpgrade()" style="display:none;">Upgrade to PRO</span>
@@ -75,6 +81,8 @@ th{background:#f0f0f0;}
 
 <!-- LOGIN -->
 <div class="auth-box" id="loginBox">
+  <!-- large login logo (local file) -->
+  <img src="logo.png" class="logo-large logo-center" alt="DCP logo">
 <h3>Sign In</h3>
 <label>Email</label><input type="email" id="loginEmail">
 <label>Password</label><input type="password" id="loginPassword">
@@ -85,6 +93,8 @@ th{background:#f0f0f0;}
 
 <!-- SIGNUP -->
 <div class="auth-box" id="signupBox" style="display:none;">
+  <!-- large signup logo (local file) -->
+  <img src="logo.png" class="logo-large logo-center" alt="DCP logo">
 <h3>Sign Up</h3>
 <label>Email</label><input type="email" id="signupEmail">
 <label>Password</label><input type="password" id="signupPassword">
@@ -121,6 +131,8 @@ th{background:#f0f0f0;}
 
 <!-- APP -->
 <div class="container" id="app" style="display:none;">
+  <!-- medium logo on logged-in app page (local file) -->
+  <img src="logo.png" class="logo-large logo-center" alt="DCP logo">
 <h3>Enter Plot Details</h3>
 <label>Plot Area (Sq. Mtr.)</label><input type="number" id="plotArea">
 <label>ASR Rate (₹ / Sq. Mtr.)</label><input type="number" id="asrRate">
